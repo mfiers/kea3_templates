@@ -1,0 +1,62 @@
+io:
+  - name: forward
+    cat: input
+  - name: reverse
+    cat: input
+  - name: output
+    default: '{g}.bam'
+  - name: output_stats
+    default: '{g}.stats'
+  - name: db_1
+    hidden_arg: true
+    default: '{{ db }}.1.bt2'
+  - name: db_2
+    hidden_arg: true
+    default: '{{ db }}.2.bt2'
+  - name: db_3
+    hidden_arg: true
+    default: '{{ db }}.3.bt2'
+  - name: db_4
+    hidden_arg: true
+    default: '{{ db }}.4.bt2'
+  - name: db_rev_1
+    hidden_arg: true
+    default: '{{ db }}.rev.1.bt2'
+  - name: db_rev_2
+    hidden_arg: true
+    default: '{{ db }}.rev.2.bt2'
+parameters:
+  - name: db
+  - name: threads
+    type: int
+    default: 8
+modules:
+  - 'Bowtie2/2.2.5-foss-2014a'
+  - 'SAMtools/1.2-foss-2014a'
+template: |
+  if [[ ! -e {{ output }} ]]
+  then
+    bowtie2 --sensitive \
+        -p {{ threads }} \
+        -x {{db}} \
+        -1 {{forward}} \
+        -2 {{ reverse }} \
+      | samtools view -Sh -q 10 - \
+      | samtools sort -T {{ output }}.tmp -O sam - \
+      | samtools view -Sb - \
+      > {{ output }}
+    samtools flagstat {{ output }} > {{ output_stats }}
+  fi
+  
+  ## grep some stats
+  BAMTOTAL=$(cat {{ output_stats }} | grep 'in total' | cut -f 1 -d+)
+  BAMSEC=$(cat {{ output_stats }} | grep 'secondary' | cut -f 1 -d+)
+  BAMMAPPED=$(cat {{ output_stats }} | grep 'mapped (' | cut -f 1 -d+)
+  BAMPROPAIR=$(cat {{ output_stats }} | grep 'properly paired' | cut -f 1 -d+)
+
+  mad mset -f \
+      -k bamstat_total $BAMTOTAL \
+      -k bamstat_secondary $BAMSEC \
+      -k bamstat_mapped $BAMMAPPED \
+      -k bamstat_properly_paired $BAMPROPAIR \
+      {{ output }}

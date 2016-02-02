@@ -1,0 +1,19 @@
+io:
+  - name: input
+  - name: output
+    default: '{g}.counts'
+parameters:
+  - name: quality
+    default: 10
+    type: int
+    help: minimal mapping quality
+  - name: flag
+    default: ""
+    help: select alignments on this flag (see samtools help)
+modules:
+  - SAMtools/1.2-foss-2014a
+template: |
+  samtools view \
+    -q {{ quality }} {%- if flag %} -f {{ flag }} {% endif %} \
+    {{ input }} \
+    | cut -f 3 | uniq -c > {{output}}

@@ -1,0 +1,31 @@
+io:
+  - name: input
+  - name: out_html
+    hidden_arg: true
+    default: '{{ outbase }}_fastqc.html'
+  - name: out_zip
+    hidden_arg: true
+    default: '{{ outbase }}_fastqc.zip'
+parameters:
+  - name: outbase
+    default: '{g}'
+  - name: threads
+    type: int
+    default: 8
+modules:
+  - 'FastQC/0.11.3-Java-1.7.0_51'
+template: |
+
+  ln -f {{ input }} {{ outbase }}.fastq.gz
+  ln -f {{ input }} {{ outbase }}.fastq.gz
+
+  if [[ ! -e {{ out_zip }} ]]
+  then
+    fastqc -t {{ threads }} -q {{ outbase }}.fastq.gz
+  fi
+
+  # use /rat/ to extract metadata in table form and /mad/ annotate the
+  # input file with it
+  rat fastqc_zip {{ out_zip }} \
+      | mad apply_from_table -p fastqc_ - {{ input }}
+

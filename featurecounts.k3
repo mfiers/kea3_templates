@@ -1,0 +1,34 @@
+io:
+  - name: db_gtf
+    help: gtf file
+  - name: input
+    cat: input
+    help: input bam files
+  - name: output
+    default: counts.tsv
+  - name: output_summary
+    default: counts.tsv.summary
+mode: reduce
+parameters:
+  - name: quality
+    type: int
+    default: 10
+  - name: agg_on
+    help: aggregate on this field ("none" for no aggregation)
+    default: gene_name
+  - name: threads
+    type: int
+    default: 8
+  - name: attribute
+    default: exon
+modules:
+  - 'Subread/1.4.6-p2-foss-2014a'
+template: |
+  featureCounts \
+    -a {{ db_gtf }} \
+    -o {{ output }} \
+    -Q {{ quality }} \
+    {% if agg_on == "none" %}-f {% else %}-g {{ agg_on }}{% endif %}\
+    -T {{ threads }} \
+    -t {{ attribute }} \
+    {{ input|join("\\\n  ") }}

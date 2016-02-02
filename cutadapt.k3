@@ -1,0 +1,39 @@
+io:
+  - name: input
+  - name: out_fq
+    hidden_arg: true
+    default: "{{ outbase }}.trim.fastq.gz"
+  - name: out_trim_stats
+    hidden_arg: true
+    default: "{{ outbase }}.trim.stats"
+  - name: out_fqc_html
+    hidden_arg: true
+    default: "{{ outbase }}.trim_fastqc.html"
+  - name: out_fqc_zip
+    hidden_arg: true
+    default: "{{ outbase }}.trim_fastqc.zip"
+  - name: adapter_file
+    cat: db
+parameters:
+  - name: outbase
+    default: "{g}"
+  - name: threads
+    type: int
+    default: 8
+modules:
+  - "FastQC/0.11.3-Java-1.7.0_51"
+template: |
+
+  cutadapt -b file:{{ adapter_file }} \
+      -o {{ out_fq }} {{ input }} > {{ out_trim_stats }}
+         
+  if [[ ! -e "{{ out_fqc_zip }}" ]]
+  then
+     fastqc -t {{ threads }} -q {{ outbase }}.trim
+  fi
+
+  # use /rat/ to extract metadata in table form and /mad/ annotate the
+  # input file with it
+  #rat fastqc_zip {{ out_fqc_zip }} \
+  #    | mad apply_from_table -p fastqc_ - {{ input }}
+

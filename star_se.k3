@@ -1,0 +1,74 @@
+io:
+  - name: forward
+    cat: input
+    help: fastq files with forward reads
+  - name: db_SA
+    hidden_arg: true
+    default: '{{ db }}/SA'
+  - name: db_genome
+    hidden_arg: true
+    default: '{{ db }}/Genome'
+  - name: out_bam
+    default: '{{ baseout }}_Aligned.sortedByCoord.out.bam'
+    hidden_arg: true
+  - name: out_bam_index
+    default: '{{ baseout }}_Aligned.sortedByCoord.out.bam.bai'
+    hidden_arg: true
+  - name: out_bam_stats
+    default: '{{ baseout }}_Aligned.sortedByCoord.out.bam.stats'
+    hidden_arg: true
+  - name: out_chimeric_junction
+    default: '{{ baseout }}_Chimeric.out.junction'
+    hidden_arg: true
+  - name: out_chimeric_sam
+    default: '{{ baseout }}_Chimeric.out.sam'
+    hidden_arg: true
+  - name: out_junction_table
+    default: '{{ baseout }}_SJ.out.tab'
+    hidden_arg: true
+parameters:
+  - name: baseout
+    default: '{g}'
+  - name: db
+    help: location of the STAR db directory
+  - name: threads
+    type: int
+    default: 8
+modules:
+  - STAR/2.4.2a-foss-2014a
+  - SAMtools/1.2-foss-2014a
+template: |
+
+  echo "Start STAR run!"
+  
+  STAR \
+    --outSAMtype BAM SortedByCoordinate \
+    --runThreadN {{ threads}} \
+    --genomeDir {{ db }} \
+    --outFileNamePrefix {{ baseout }}_ \
+    --chimSegmentMin 18 \
+    {% if forward.endswith('.gz') %} --readFilesCommand zcat {% endif %} \
+    --readFilesIn \
+      {{ forward }}
+       
+  #generate index
+  samtools index \
+    {{ baseout }}_Aligned.sortedByCoord.out.bam
+  
+  #generate a stats file
+  samtools flagstat \
+    {{ baseout }}_Aligned.sortedByCoord.out.bam \
+    >  {{ baseout }}_Aligned.sortedByCoord.out.bam.stats
+  
+  ## grep some stats
+  BAMTOTAL=$(cat {{ out_bam_stats }} | grep 'in total' | cut -f 1 -d+)
+  BAMSEC=$(cat {{ out_bam_stats }} | grep 'secondary' | cut -f 1 -d+)
+  BAMMAPPED=$(cat {{ out_bam_stats }} | grep 'mapped (' | cut -f 1 -d+)
+  BAMPROPAIR=$(cat {{ out_bam_stats }} | grep 'properly paired' | cut -f 1 -d+)
+
+  mad mset -f \
+      -k bamstat_total $BAMTOTAL \
+      -k bamstat_secondary $BAMSEC \
+      -k bamstat_mapped $BAMMAPPED \
+      -k bamstat_properly_paired $BAMPROPAIR \
+      {{ out_bam }}

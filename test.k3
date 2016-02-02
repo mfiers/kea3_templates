@@ -1,0 +1,9 @@
+io:
+  - name: input
+  - name: output
+parameters:
+  - name: test
+    default: konijn
+template: |
+  echo {{ input }} {{ output }}
+  echo {{ input }} > {{ output }}

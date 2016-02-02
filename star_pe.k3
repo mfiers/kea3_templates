@@ -1,0 +1,87 @@
+io:
+  - name: forward
+    cat: input
+    help: fastq files with forward reads
+  - name: reverse
+    cat: input
+    help: fastq files with reverse reads
+  - name: db_SA
+    hidden_arg: true
+    default: '{{ db }}/SA'
+  - name: db_genome
+    hidden_arg: true
+    default: '{{ db }}/Genome'
+  - name: out_bam
+    default: '{{ baseout }}_Aligned.sortedByCoord.out.bam'
+    hidden_arg: true
+  - name: out_bam_index
+    default: '{{ baseout }}_Aligned.sortedByCoord.out.bam.bai'
+    hidden_arg: true
+  - name: out_bam_stats
+    default: '{{ baseout }}_Aligned.sortedByCoord.out.bam.stats'
+    hidden_arg: true
+  - name: out_idx_stats
+    default: '{{ baseout }}_Aligned.sortedByCoord.out.bam.idxstats'
+    hidden_arg: true
+  - name: out_chimeric_junction
+    default: '{{ baseout }}_Chimeric.out.junction'
+    hidden_arg: true
+  - name: out_chimeric_sam
+    default: '{{ baseout }}_Chimeric.out.sam'
+    hidden_arg: true
+  - name: out_junction_table
+    default: '{{ baseout }}_SJ.out.tab'
+    hidden_arg: true
+  - name: out_map_stats
+    default: '{{ baseout }}_Log.final.out'
+    hidden_arg: true
+parameters:
+  - name: baseout
+    default: '{g}'
+  - name: db
+    help: location of the STAR db directory
+  - name: threads
+    type: int
+    default: 8
+modules:
+  - STAR/2.4.2a-foss-2014a
+  - SAMtools/1.2-foss-2014a
+template: |
+
+  echo "Start STAR run"
+
+  if [[ ! -e {{ out_bam }} ]]
+  then
+    STAR \
+      --outSAMtype BAM SortedByCoordinate \
+      --runThreadN {{ threads}} \
+      --genomeDir {{ db }} \
+      --outFileNamePrefix {{ baseout }}_ \
+      --chimSegmentMin 18 {% if forward.endswith('.gz') %} --readFilesCommand zcat {% endif %} \
+      --readFilesIn \
+        {{ forward }} \
+        {{ reverse }}
+        
+    #generate index
+    samtools index \
+      {{ baseout }}_Aligned.sortedByCoord.out.bam
+  fi
+
+  echo "Calc stats for {{ out_bam }}"
+  #generate a samtools stat file
+  samtools stats \
+      {{ out_bam }} \
+      > {{ out_bam_stats }}
+
+  samtools idxstats {{ out_bam }} \
+      > {{ out_idx_stats }}
+
+  echo "Mad annotate {{ out_bam }}"
+  #parse stat files & annotate the bam file
+  rat samtools_stats {{ out_bam_stats }} \
+      | mad apply_from_table -p samtools_ - {{ out_bam }}
+
+  rat samtools_idxstats {{ out_idx_stats }} \
+      | mad apply_from_table -p samtools_ - {{ out_bam }}
+        
+  
