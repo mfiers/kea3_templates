@@ -1,0 +1,7 @@
+io:
+  - name: input
+  - name: output
+template: |
+
+  ln -s {{ input }} {{ output }}
+

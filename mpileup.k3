@@ -1,0 +1,61 @@
+io:
+  - name: output
+    help: output vcf calls
+    default: mpileup.vcf
+  - name: outraw
+    help: raw primary calls
+    default: '{{ output }}.raw'
+  - name: outstats_snpeff
+    hidden_arg: true
+    default: "{{ output|replace('.vcf', '.stats') }}"
+  - name: outstats_genes_snpeff
+    hidden_arg: true
+    default: "{{ output|replace('.vcf', '.stats') }}.genes.txt"
+  - name: outvcf_snpeff
+    hidden_arg: true
+    default: "{{ output|replace('.vcf', '.snpeff.vcf') }}"
+  - name: genome_fasta
+    cat: input
+  - name: input
+    help: input bam files
+mode: reduce
+parameters:
+  - name: region
+    default: ''
+  - name: maxdepth
+    default: ''
+  - name: snpeff_genome
+    default: ''
+    help: 'snpEff genome build - do not run if not specified'
+modules:
+  - 'SAMtools/1.3-foss-2014a'
+  - 'BCFtools/1.3-foss-2014a'
+  - 'HTSlib/1.3-foss-2014a'
+template: |
+
+  if [[ ! -s "{{ outraw }}" ]]
+  then
+    samtools mpileup -q 5 -u -t 'DP,AD,INFO/AD,ADF,ADR,SP' {% if region %} \
+      --region {{ region }} {% endif %}{% if maxdepth %} \
+      --max-depth {{ maxdepth }} {% endif %} \
+      -f {{ genome_fasta }} \
+      {{ input|join(" \\\n      ") }} \
+      | bcftools call -mv > {{ outraw }}
+  fi
+
+  if [[ ! -s "{{ output }}" ]]
+  then
+    bcftools filter -s LowQual -e '%QUAL<20 || DP>100' {{ outraw }} \
+      > {{ output }}
+  fi
+
+  {% if snpeff_genome %}
+  if [[ ! -s "qqq{{ outvcf_snpeff }}" ]]
+  then
+    echo 'Running SnpEff'
+    cat {{ output }} \
+      | snpEff ann {{ snpeff_genome }} \
+         -csvStats $PWD/{{ outstats_snpeff }} \
+      > {{ outvcf_snpeff }}
+  fi
+  {% endif %}

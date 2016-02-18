@@ -1,4 +1,6 @@
 io:
+  - name: adapter_file
+    cat: db
   - name: input
   - name: out_fq
     hidden_arg: true
@@ -12,8 +14,6 @@ io:
   - name: out_fqc_zip
     hidden_arg: true
     default: "{{ outbase }}.trim_fastqc.zip"
-  - name: adapter_file
-    cat: db
 parameters:
   - name: outbase
     default: "{g}"
@@ -21,28 +21,27 @@ parameters:
     type: int
     default: 8
 modules:
+  - "ea-utils/r819-foss-2014a"
   - "FastQC/0.11.3-Java-1.7.0_51"
 template: |
 
-  if [[ ! -s {{ out_fq }} ]]
-  then
-      cutadapt -b file:{{ adapter_file }} \
-          -o {{ out_fq }} {{ input }} > {{ out_trim_stats }}
-  else
-      touch {{ out_fq }} {{ out_trim_stats }}
+  if [[ ! -s "{{ out_fq }}" ]]
+  then 
+      fastq-mcf -p {{ threads }} \
+          -o {{ out_fq }} \
+          {{ adapter_file }} \
+          {{ input }} > {{ out_trim_stats }}
   fi
-  
+         
   if [[ ! -s "{{ out_fqc_zip }}" ]]
   then
-     fastqc -t {{ threads }} -q {{ out_fq }}
-  else
-     touch {{ out_fqc_zip }} {{ out_fqc_html }}
+      fastqc -t {{ threads }} -q {{ out_fq }}
   fi
 
   # use /rat/ to extract metadata in table form and /mad/ annotate the
   # input file with it
   rat fastqc_zip {{ out_fqc_zip }} \
       | mad apply_from_table -p fastqc_ - {{ out_fq }}
-  rat cutadapt_stats {{ out_trim_stats }} \
-      | mad apply_from_table -p cutadapt_ - {{ out_fq }}
+  rat fastq_mcf_stats {{ out_trim_stats }} \
+      | mad apply_from_table -p fastqmcf_ - {{ out_fq }}
 

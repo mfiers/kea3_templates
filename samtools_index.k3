@@ -1,0 +1,9 @@
+io:
+  - name: input
+  - name: output
+    default: '{{ g|replace(".bam", ".bai") }}'
+template: |
+
+  samtools index {{ input }} {{ output }}
+
+  

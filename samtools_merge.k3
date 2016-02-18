@@ -1,0 +1,60 @@
+io:
+  - name: out_bam
+    help: output bam file
+  - name: outbai
+    hidden_arg: true
+    help: output bam index
+    default: "{{ out_bam|replace('bam', 'bai') }}"
+  - name: out_bam_stats
+    hidden_arg: true
+    help: output bam statistics
+    default: "{{ out_bam }}.stats"
+  - name: out_idx_stats
+    hidden_arg: true
+    help: output index
+    default: "{{ out_bam }}.idx"
+  - name: input
+    help: input bam files
+mode: reduce
+parameters:
+  - name: force
+    default: ''
+  - name: region
+    default: ''
+modules:
+  - 'SAMtools/1.3-foss-2014a'
+template: |
+
+  set -e
+ 
+  if [[ ! -s {{ out_bam }} ]]
+  then
+    samtools merge {% if force %} -f {% endif %}{% if region %}\
+       -R {{ region }} {% endif %}\
+       {{ out_bam }} \
+       {{ input|join(" \\\n  ") }}
+  fi
+
+  if [[ ! -s {{ outbai }} ]]
+  then
+    samtools index {{ out_bam }} {{ outbai }}
+  fi
+
+  #generate a samtools stat file
+  echo "generate bam stats"
+  samtools stats \
+      {{ out_bam }} \
+      > {{ out_bam_stats }}
+
+  echo "generate idx stats {{ out_idx_stats }}"
+  samtools idxstats {{ out_bam }} \
+      > {{ out_idx_stats }}
+
+  echo "Mad annotate {{ out_bam }} with bam stats"
+  #parse stat files & annotate the bam file
+  rat samtools_stats {{ out_bam_stats }} \
+      | mad apply_from_table -p samtools_ - {{ out_bam }}
+
+  echo "Mad annotate {{ out_bam }} with idx stats"
+    rat samtools_idxstats {{ out_idx_stats }} \
+      | mad apply_from_table -p samtools_ - {{ out_bam }}

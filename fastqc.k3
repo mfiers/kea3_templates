@@ -19,7 +19,7 @@ template: |
   ln -f {{ input }} {{ outbase }}.fastq.gz
   ln -f {{ input }} {{ outbase }}.fastq.gz
 
-  if [[ ! -e {{ out_zip }} ]]
+  if [[ ! -s {{ out_zip }} ]]
   then
     fastqc -t {{ threads }} -q {{ outbase }}.fastq.gz
   fi
